@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { ToastProvider } from './components/Toast';
 import { Sidebar } from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
@@ -33,6 +34,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <SpeedInsights />
       <ToastProvider>
         <Routes>
           {/* Ruta Login */}
