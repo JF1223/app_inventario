@@ -1,0 +1,38 @@
+# ============================================================
+# .gitignore - CoolService
+# ============================================================
+
+# Dependencias
+node_modules/
+.npm
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# Build
+dist/
+build/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# TypeScript
+*.tsbuildinfo

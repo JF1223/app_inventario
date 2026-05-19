@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash($MYSQL:*)",
+      "Bash(C:\\\\Program Files\\\\MySQL\\\\MySQL Server 9.2\\\\bin\\\\mysql.exe *)"
+    ]
+  }
+}

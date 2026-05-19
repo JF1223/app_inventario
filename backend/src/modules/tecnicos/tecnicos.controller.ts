@@ -1,0 +1,34 @@
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { TecnicosService } from './tecnicos.service';
+import { CreateTecnicoDto } from './dto/create-tecnico.dto';
+import { UpdateTecnicoDto } from './dto/update-tecnico.dto';
+
+@Controller('tecnicos')
+export class TecnicosController {
+  constructor(private readonly service: TecnicosService) {}
+
+  @Post()
+  create(@Body() dto: CreateTecnicoDto) {
+    return this.service.create(dto);
+  }
+
+  @Get()
+  findAll() {
+    return this.service.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTecnicoDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id', ParseIntPipe) id: number) {
+    return this.service.delete(id);
+  }
+}
