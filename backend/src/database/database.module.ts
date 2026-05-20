@@ -16,6 +16,7 @@ const DATABASE_SYMBOL = 'DATABASE_POOL';
           port: config.get<number>('DB_PORT'),
           user: config.get('DB_USERNAME'),
           password: config.get('DB_PASSWORD'),
+          database: config.get('DB_DATABASE'),
           max: 10,
           ssl: (config.get('DB_HOST') || '').includes('render.com') || config.get('NODE_ENV') === 'production' 
                ? { rejectUnauthorized: false } : false
