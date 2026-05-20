@@ -11,17 +11,27 @@ const DATABASE_SYMBOL = 'DATABASE_POOL';
     {
       provide: DATABASE_SYMBOL,
       useFactory: (config: ConfigService) => {
-        const pool = new Pool({
-          host: config.get('DB_HOST'),
-          port: config.get<number>('DB_PORT'),
-          user: config.get('DB_USERNAME'),
-          password: config.get('DB_PASSWORD'),
-          database: config.get('DB_DATABASE'),
+        const dbUrl = config.get<string>('DATABASE_URL');
+        const dbHost = config.get<string>('DB_HOST') || '';
+        const isProduction = config.get('NODE_ENV') === 'production';
+        
+        const poolOptions: any = {
           max: 10,
-          ssl: (config.get('DB_HOST') || '').includes('render.com') || config.get('NODE_ENV') === 'production' 
-               ? { rejectUnauthorized: false } : false
-        });
+        };
 
+        if (dbUrl) {
+          poolOptions.connectionString = dbUrl;
+          poolOptions.ssl = dbUrl.includes('render.com') || isProduction ? { rejectUnauthorized: false } : false;
+        } else {
+          poolOptions.host = dbHost;
+          poolOptions.port = config.get<number>('DB_PORT');
+          poolOptions.user = config.get('DB_USERNAME');
+          poolOptions.password = config.get('DB_PASSWORD');
+          poolOptions.database = config.get('DB_DATABASE');
+          poolOptions.ssl = dbHost.includes('render.com') || isProduction ? { rejectUnauthorized: false } : false;
+        }
+
+        const pool = new Pool(poolOptions);
         return pool;
       },
       inject: [ConfigService],
