@@ -1,5 +1,10 @@
 {
   "dependencies": {
-    "mysql2": "^3.22.3"
+    "mysql2": "^3.22.3",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/pg": "^8.20.0"
   }
 }
