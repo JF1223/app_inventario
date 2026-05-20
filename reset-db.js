@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +8,8 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT) || 5432,
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  database: 'postgres' // Conectamos a postgres default primero
+  database: 'postgres', // Conectamos a postgres default primero
+  ssl: { rejectUnauthorized: false }
 };
 
 async function resetDatabase() {
