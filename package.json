@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "mysql2": "^3.22.3",
     "pg": "^8.21.0"
   },
   "devDependencies": {

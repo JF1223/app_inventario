@@ -2,7 +2,6 @@
 -- Datos de Prueba (Seed Data)
 -- ============================================================
 
-USE neveras_db;
 
 -- Clientes
 INSERT INTO clientes (nombre, documento, direccion, telefono, email) VALUES

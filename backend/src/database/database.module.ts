@@ -1,6 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createPool } from 'mysql2/promise';
+import { Pool } from 'pg';
 import { DatabaseService } from './database.service';
 
 const DATABASE_SYMBOL = 'DATABASE_POOL';
@@ -11,18 +11,14 @@ const DATABASE_SYMBOL = 'DATABASE_POOL';
     {
       provide: DATABASE_SYMBOL,
       useFactory: (config: ConfigService) => {
-        const pool = createPool({
+        const pool = new Pool({
           host: config.get('DB_HOST'),
           port: config.get<number>('DB_PORT'),
           user: config.get('DB_USERNAME'),
           password: config.get('DB_PASSWORD'),
-          database: config.get('DB_DATABASE'),
-          charset: 'utf8mb4',
-          waitForConnections: true,
-          connectionLimit: 10,
-          queueLimit: 0,
-          enableKeepAlive: true,
-          keepAliveInitialDelay: 0,
+          max: 10,
+          ssl: (config.get('DB_HOST') || '').includes('render.com') || config.get('NODE_ENV') === 'production' 
+               ? { rejectUnauthorized: false } : false
         });
 
         return pool;
