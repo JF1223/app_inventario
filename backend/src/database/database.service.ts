@@ -17,8 +17,12 @@ export class DatabaseService implements OnModuleDestroy {
       throw new Error("El nombre del procedimiento no puede estar vacío");
     }
 
+    // Corregimos: eliminamos '()' del nombre si es que ya los traía, 
+    // para evitar que se dupliquen en la consulta final.
+    const cleanProcedureName = procedureName.replace('()', '');
+
     const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
-    const sql = `SELECT * FROM ${procedureName}(${placeholders})`;
+    const sql = `SELECT * FROM ${cleanProcedureName}(${placeholders})`;
     
     console.log('Ejecutando SQL:', sql, 'con params:', params);
 
