@@ -12,22 +12,24 @@ export class DatabaseService implements OnModuleDestroy {
     return result.rows as unknown as T;
   }
 
-  async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
-    const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
-    const result = await this.pool.query(`SELECT * FROM ${procedureName}(${placeholders})`, params);
-    if (result.rows.length > 0) {
-      // In PostgreSQL, row results might come nested depending on how the function is defined,
-      // but assuming we return SETOF record or TABLE, we get flat rows.
-      return result.rows[0] as unknown as T;
-    }
-    return result.rows as unknown as T;
+ async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
+  // 1. Verificación de seguridad
+  if (!procedureName) {
+    throw new Error("El nombre del procedimiento no puede estar vacío");
   }
 
-  async getConnection() {
-    return this.pool.connect();
-  }
+  const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
+  const sql = `SELECT * FROM ${procedureName}(${placeholders})`;
+  
+  // 2. LOG para ver exactamente qué se está enviando a Postgres
+  console.log('Ejecutando SQL:', sql, 'con params:', params);
 
-  async onModuleDestroy() {
-    await this.pool.end();
+  const result = await this.pool.query(sql, params);
+  
+  if (result.rows.length > 0) {
+    // Si el procedimiento devuelve una sola fila con una columna que es un objeto (común en funciones de Postgres)
+    // a veces el resultado viene en el primer nombre de columna.
+    return result.rows[0] as unknown as T;
   }
+  return result.rows as unknown as T;
 }
