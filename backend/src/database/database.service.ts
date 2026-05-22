@@ -1,44 +1,63 @@
-import { Injectable, Inject, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
-
-const DATABASE_SYMBOL = 'DATABASE_POOL';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Pool, QueryResult } from 'pg';
 
 @Injectable()
-export class DatabaseService implements OnModuleDestroy {
-  constructor(@Inject(DATABASE_SYMBOL) private readonly pool: Pool) { }
+export class DatabaseService
+  implements OnModuleInit, OnModuleDestroy
+{
+  private pool: Pool;
 
-  async query<T = any>(sql: string, params?: any[]): Promise<T> {
-    const result = await this.pool.query(sql, params);
-    return result.rows as unknown as T;
+  constructor() {
+    this.pool = new Pool({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      user: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+
+      // IMPORTANTE PARA SUPABASE
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
   }
 
-  async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
-    if (!procedureName || procedureName.trim() === '') {
-      throw new Error("El nombre del procedimiento no puede estar vacío");
+  // ============================================
+  // CONEXION
+  // ============================================
+
+  async onModuleInit() {
+    try {
+      const client = await this.pool.connect();
+
+      console.log('✅ PostgreSQL conectado correctamente');
+
+      client.release();
+    } catch (error) {
+      console.error('❌ Error conectando PostgreSQL:', error);
+
+      throw error;
     }
-
-    // Corregimos: eliminamos '()' del nombre si es que ya los traía, 
-    // para evitar que se dupliquen en la consulta final.
-    const cleanProcedureName = procedureName.replace('()', '');
-
-    const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
-    const sql = `SELECT * FROM ${cleanProcedureName}(${placeholders})`;
-    
-    console.log('Ejecutando SQL:', sql, 'con params:', params);
-
-    const result = await this.pool.query(sql, params);
-    
-    if (result.rows.length > 0) {
-      return result.rows[0] as unknown as T;
-    }
-    return result.rows as unknown as T;
   }
 
-  async getConnection() {
-    return this.pool.connect();
+  // ============================================
+  // QUERY GENERAL
+  // ============================================
+
+  async query<T = any>(
+    text: string,
+    params?: any[],
+  ): Promise<QueryResult<T>> {
+    return this.pool.query(text, params);
   }
+
+  // ============================================
+  // CERRAR CONEXION
+  // ============================================
 
   async onModuleDestroy() {
     await this.pool.end();
+
+    console.log('🔌 PostgreSQL desconectado');
   }
 }
