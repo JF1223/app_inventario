@@ -38,7 +38,7 @@ export class EquiposService {
 
   async create(dto: CreateEquipoDto): Promise<Equipo> {
     try {
-      const result = await this.db.query<Equipo>(
+      const result = await this.db.query(
         `
         SELECT * FROM sp_equipo_create(
           $1, $2, $3, $4, $5, $6, $7, $8
@@ -71,20 +71,24 @@ export class EquiposService {
   // ============================================
 
   async findAll(): Promise<Equipo[]> {
-    const result = await this.db.query<Equipo>(
-      `SELECT * FROM sp_equipo_find_all()`,
+    const result = await this.db.query(
+      `
+      SELECT * FROM sp_equipo_find_all()
+      `,
     );
 
     return result.rows;
   }
 
   // ============================================
-  // OBTENER UN EQUIPO
+  // OBTENER EQUIPO POR ID
   // ============================================
 
   async findOne(id: number): Promise<Equipo> {
-    const result = await this.db.query<Equipo>(
-      `SELECT * FROM sp_equipo_find_one($1)`,
+    const result = await this.db.query(
+      `
+      SELECT * FROM sp_equipo_find_one($1)
+      `,
       [id],
     );
 
@@ -105,7 +109,7 @@ export class EquiposService {
     id: number,
     dto: UpdateEquipoDto,
   ): Promise<Equipo> {
-    const result = await this.db.query<Equipo>(
+    const result = await this.db.query(
       `
       SELECT * FROM sp_equipo_update(
         $1, $2, $3, $4, $5, $6, $7, $8, $9
@@ -139,7 +143,9 @@ export class EquiposService {
 
   async delete(id: number): Promise<void> {
     await this.db.query(
-      `SELECT * FROM sp_equipo_delete($1)`,
+      `
+      SELECT * FROM sp_equipo_delete($1)
+      `,
       [id],
     );
   }
@@ -149,8 +155,10 @@ export class EquiposService {
   // ============================================
 
   async findByEstado(estado: string): Promise<Equipo[]> {
-    const result = await this.db.query<Equipo>(
-      `SELECT * FROM sp_equipo_find_by_estado($1)`,
+    const result = await this.db.query(
+      `
+      SELECT * FROM sp_equipo_find_by_estado($1)
+      `,
       [estado],
     );
 
@@ -158,12 +166,14 @@ export class EquiposService {
   }
 
   // ============================================
-  // EQUIPOS OPERATIVOS DISPONIBLES
+  // LISTAR OPERATIVOS DISPONIBLES
   // ============================================
 
   async findOperativosDisponibles(): Promise<Equipo[]> {
-    const result = await this.db.query<Equipo>(
-      `SELECT * FROM sp_equipo_find_operativos_disponibles()`,
+    const result = await this.db.query(
+      `
+      SELECT * FROM sp_equipo_find_operativos_disponibles()
+      `,
     );
 
     return result.rows;
@@ -177,15 +187,18 @@ export class EquiposService {
     id: number,
     dto: EnviarReparacionDto,
   ): Promise<Equipo> {
-    const result = await this.db.query<Equipo>(
+    const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_enviar_reparacion(
-        $1,
-        $2
-      )
+      SELECT * FROM sp_equipo_enviar_reparacion($1, $2)
       `,
-      [id, dto.observaciones],
+      [id, dto.observaciones || null],
     );
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException(
+        `Equipo con ID ${id} no encontrado`,
+      );
+    }
 
     return result.rows[0];
   }
@@ -195,7 +208,7 @@ export class EquiposService {
   // ============================================
 
   async finalizarReparacion(id: number): Promise<Equipo> {
-    const result = await this.db.query<Equipo>(
+    const result = await this.db.query(
       `
       SELECT * FROM sp_equipo_finalizar_reparacion($1)
       `,
@@ -219,12 +232,18 @@ export class EquiposService {
     id: number,
     dto: ReasignarEquipoDto,
   ): Promise<Equipo> {
-    const result = await this.db.query<Equipo>(
+    const result = await this.db.query(
       `
       SELECT * FROM sp_equipo_reasignar($1, $2)
       `,
       [id, dto.id_cliente],
     );
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException(
+        `No se pudo reasignar el equipo`,
+      );
+    }
 
     return result.rows[0];
   }
