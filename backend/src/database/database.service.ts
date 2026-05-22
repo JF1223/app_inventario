@@ -16,11 +16,17 @@ export class DatabaseService implements OnModuleDestroy {
 
   // Nota sobre 'call': PostgreSQL no usa 'CALL' de la misma forma que MySQL.
   // Si no usas procedimientos almacenados complejos, este método podría no ser necesario.
-  async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
-    // Si realmente usas funciones en Postgres, se llamarían con SELECT * FROM nombre_funcion(...)
-    const result = await this.pool.query(`SELECT * FROM ${procedureName}($1)`, params);
-    return result.rows as T;
+async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
+  // Validar que el nombre sea un identificador válido de PostgreSQL
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(procedureName)) {
+    throw new Error(`Nombre de procedimiento inválido: ${procedureName}`);
   }
+
+  // Escapar el nombre con comillas dobles (requerido si es palabra reservada)
+  const query = `SELECT * FROM "${procedureName}"(${params.map((_, i) => `$${i + 1}`).join(', ')})`;
+  const result = await this.pool.query(query, params);
+  return result.rows as T;
+}
 
   async getConnection() {
     return await this.pool.connect();
