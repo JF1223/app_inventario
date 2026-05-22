@@ -2,6 +2,8 @@
 -- CLIENTES
 -- =========================
 
+-- ✅ CORREGIDO: Usar RETURNS TABLE explícito con columnas en lugar de SETOF
+-- (así sí se puede llamar con SELECT * FROM sp_crear_cliente(...))
 CREATE OR REPLACE FUNCTION sp_crear_cliente(
   p_nombre VARCHAR(150),
   p_documento VARCHAR(50),
@@ -17,17 +19,49 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ✅ CORREGIDO: Para listar todos, mejor usar VIEW o función con RETURNS TABLE
+-- Opción A: Si quieres mantener función, definir columnas explícitas
 CREATE OR REPLACE FUNCTION sp_listar_clientes()
-RETURNS SETOF clientes AS $$
+RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  documento VARCHAR(50),
+  direccion VARCHAR(255),
+  telefono VARCHAR(30),
+  email VARCHAR(150),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM clientes ORDER BY created_at DESC;
+  RETURN QUERY 
+  SELECT c.id, c.nombre, c.documento, c.direccion, c.telefono, c.email, c.created_at, c.updated_at
+  FROM clientes c
+  ORDER BY c.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 
+-- ✅ Opción B (RECOMENDADA): Usar una VIEW en su lugar
+-- DROP VIEW IF EXISTS vw_clientes;
+-- CREATE OR REPLACE VIEW vw_clientes AS
+-- SELECT * FROM clientes ORDER BY created_at DESC;
+-- -- Luego en NestJS: SELECT * FROM vw_clientes
+
 CREATE OR REPLACE FUNCTION sp_obtener_cliente(p_id INT)
-RETURNS SETOF clientes AS $$
+RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  documento VARCHAR(50),
+  direccion VARCHAR(255),
+  telefono VARCHAR(30),
+  email VARCHAR(150),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM clientes WHERE clientes.id = p_id;
+  RETURN QUERY 
+  SELECT c.id, c.nombre, c.documento, c.direccion, c.telefono, c.email, c.created_at, c.updated_at
+  FROM clientes c
+  WHERE c.id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -38,7 +72,16 @@ CREATE OR REPLACE FUNCTION sp_actualizar_cliente(
   p_direccion VARCHAR(255),
   p_telefono VARCHAR(30),
   p_email VARCHAR(150)
-) RETURNS SETOF clientes AS $$
+) RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  documento VARCHAR(50),
+  direccion VARCHAR(255),
+  telefono VARCHAR(30),
+  email VARCHAR(150),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
   RETURN QUERY
   UPDATE clientes
@@ -49,14 +92,16 @@ BEGIN
       email = p_email,
       updated_at = NOW()
   WHERE clientes.id = p_id
-  RETURNING *;
+  RETURNING clientes.id, clientes.nombre, clientes.documento, clientes.direccion, 
+            clientes.telefono, clientes.email, clientes.created_at, clientes.updated_at;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_eliminar_cliente(p_id INT)
-RETURNS void AS $$
+RETURNS TABLE(eliminado BOOLEAN) AS $$
 BEGIN
   DELETE FROM clientes WHERE id = p_id;
+  RETURN QUERY SELECT TRUE;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -82,15 +127,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ✅ CORREGIDO: Definir columnas explícitas en RETURNS TABLE
 CREATE OR REPLACE FUNCTION sp_listar_equipos()
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id;
 END;
@@ -98,13 +156,25 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_obtener_equipo(p_id INT)
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.id = p_id;
@@ -121,7 +191,20 @@ CREATE OR REPLACE FUNCTION sp_actualizar_equipo(
   p_asignadas VARCHAR(255),
   p_observaciones TEXT,
   p_id_cliente INT
-) RETURNS SETOF equipos AS $$
+) RETURNS TABLE(
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
   RETURN QUERY
   UPDATE equipos
@@ -135,14 +218,16 @@ BEGIN
       id_cliente = p_id_cliente,
       updated_at = NOW()
   WHERE equipos.id = p_id
-  RETURNING *;
+  RETURNING equipos.id, equipos.placa, equipos.estado, equipos.tipo_reparacion, 
+            equipos.limpieza, equipos.uso, equipos.novedad, equipos.asignadas, 
+            equipos.observaciones, equipos.id_cliente, equipos.created_at, equipos.updated_at;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_enviar_a_reparacion(
   p_id_equipo INT,
   p_observaciones TEXT
-) RETURNS void AS $$
+) RETURNS VOID AS $$
 BEGIN
   UPDATE equipos
   SET estado = 'en_reparacion',
@@ -157,9 +242,19 @@ CREATE OR REPLACE FUNCTION sp_equipo_enviar_reparacion(
   p_id INT,
   p_observaciones TEXT
 ) RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   UPDATE equipos
@@ -170,7 +265,9 @@ BEGIN
   WHERE equipos.id = p_id;
 
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.id = p_id;
@@ -179,9 +276,19 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_finalizar_reparacion(p_id INT)
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   UPDATE equipos
@@ -191,7 +298,9 @@ BEGIN
   WHERE equipos.id = p_id AND equipos.estado = 'en_reparacion';
 
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.id = p_id;
@@ -200,9 +309,19 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_reasignar_equipo(p_id INT, p_id_cliente INT)
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   UPDATE equipos
@@ -211,7 +330,9 @@ BEGIN
   WHERE equipos.id = p_id;
 
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.id = p_id;
@@ -220,13 +341,25 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_listar_equipos_por_estado(p_estado VARCHAR(50))
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.estado = p_estado
@@ -236,13 +369,25 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_listar_operativos_disponibles()
 RETURNS TABLE(
-  id INT, placa VARCHAR, estado VARCHAR, tipo_reparacion VARCHAR, limpieza VARCHAR, uso VARCHAR,
-  novedad VARCHAR, asignadas VARCHAR, observaciones TEXT, id_cliente INT, created_at TIMESTAMP,
-  updated_at TIMESTAMP, cliente_nombre VARCHAR
+  id INT, 
+  placa VARCHAR, 
+  estado VARCHAR, 
+  tipo_reparacion VARCHAR, 
+  limpieza VARCHAR, 
+  uso VARCHAR,
+  novedad VARCHAR, 
+  asignadas VARCHAR, 
+  observaciones TEXT, 
+  id_cliente INT, 
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP, 
+  cliente_nombre VARCHAR
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT e.*, c.nombre::VARCHAR AS cliente_nombre
+  SELECT e.id, e.placa, e.estado, e.tipo_reparacion, e.limpieza, e.uso,
+         e.novedad, e.asignadas, e.observaciones, e.id_cliente, e.created_at,
+         e.updated_at, c.nombre::VARCHAR AS cliente_nombre
   FROM equipos e
   LEFT JOIN clientes c ON e.id_cliente = c.id
   WHERE e.estado = 'operativo' AND e.novedad = 'disponible'
@@ -251,9 +396,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_eliminar_equipo(p_id INT)
-RETURNS void AS $$
+RETURNS TABLE(eliminado BOOLEAN) AS $$
 BEGIN
   DELETE FROM equipos WHERE id = p_id;
+  RETURN QUERY SELECT TRUE;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -274,17 +420,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ✅ CORREGIDO: Definir columnas explícitas
 CREATE OR REPLACE FUNCTION sp_listar_tecnicos()
-RETURNS SETOF tecnicos AS $$
+RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  especialidad VARCHAR(100),
+  contacto VARCHAR(50),
+  activo BOOLEAN,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM tecnicos;
+  RETURN QUERY 
+  SELECT t.id, t.nombre, t.especialidad, t.contacto, t.activo, t.created_at, t.updated_at
+  FROM tecnicos t;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_obtener_tecnico(p_id INT)
-RETURNS SETOF tecnicos AS $$
+RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  especialidad VARCHAR(100),
+  contacto VARCHAR(50),
+  activo BOOLEAN,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM tecnicos WHERE tecnicos.id = p_id;
+  RETURN QUERY 
+  SELECT t.id, t.nombre, t.especialidad, t.contacto, t.activo, t.created_at, t.updated_at
+  FROM tecnicos t
+  WHERE t.id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -293,7 +461,15 @@ CREATE OR REPLACE FUNCTION sp_actualizar_tecnico(
   p_nombre VARCHAR(150),
   p_especialidad VARCHAR(100),
   p_contacto VARCHAR(50)
-) RETURNS SETOF tecnicos AS $$
+) RETURNS TABLE (
+  id INT,
+  nombre VARCHAR(150),
+  especialidad VARCHAR(100),
+  contacto VARCHAR(50),
+  activo BOOLEAN,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
   RETURN QUERY
   UPDATE tecnicos
@@ -301,14 +477,16 @@ BEGIN
       especialidad = p_especialidad,
       contacto = p_contacto
   WHERE tecnicos.id = p_id
-  RETURNING *;
+  RETURNING tecnicos.id, tecnicos.nombre, tecnicos.especialidad, tecnicos.contacto, 
+            tecnicos.activo, tecnicos.created_at, tecnicos.updated_at;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_eliminar_tecnico(p_id INT)
-RETURNS void AS $$
+RETURNS TABLE(eliminado BOOLEAN) AS $$
 BEGIN
   DELETE FROM tecnicos WHERE id = p_id;
+  RETURN QUERY SELECT TRUE;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -330,17 +508,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ✅ CORREGIDO: Definir columnas explícitas
 CREATE OR REPLACE FUNCTION sp_listar_ordenes()
-RETURNS SETOF ordenes_servicio AS $$
+RETURNS TABLE (
+  id INT,
+  id_equipo INT,
+  id_tecnico INT,
+  estado VARCHAR(30),
+  tipo VARCHAR(30),
+  es_reemplazo BOOLEAN,
+  descripcion TEXT,
+  observaciones TEXT,
+  fecha_inicio TIMESTAMP,
+  fecha_fin TIMESTAMP,
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM ordenes_servicio;
+  RETURN QUERY 
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at
+  FROM ordenes_servicio o;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_obtener_orden(p_id INT)
-RETURNS SETOF ordenes_servicio AS $$
+RETURNS TABLE (
+  id INT,
+  id_equipo INT,
+  id_tecnico INT,
+  estado VARCHAR(30),
+  tipo VARCHAR(30),
+  es_reemplazo BOOLEAN,
+  descripcion TEXT,
+  observaciones TEXT,
+  fecha_inicio TIMESTAMP,
+  fecha_fin TIMESTAMP,
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM ordenes_servicio WHERE ordenes_servicio.id = p_id;
+  RETURN QUERY 
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at
+  FROM ordenes_servicio o
+  WHERE o.id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -348,29 +564,60 @@ CREATE OR REPLACE FUNCTION sp_actualizar_orden(
   p_id INT,
   p_estado VARCHAR(30),
   p_observaciones TEXT
-) RETURNS SETOF ordenes_servicio AS $$
+) RETURNS TABLE (
+  id INT,
+  id_equipo INT,
+  id_tecnico INT,
+  estado VARCHAR(30),
+  tipo VARCHAR(30),
+  es_reemplazo BOOLEAN,
+  descripcion TEXT,
+  observaciones TEXT,
+  fecha_inicio TIMESTAMP,
+  fecha_fin TIMESTAMP,
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+) AS $$
 BEGIN
   RETURN QUERY
   UPDATE ordenes_servicio
   SET estado = p_estado,
       observaciones = p_observaciones
   WHERE ordenes_servicio.id = p_id
-  RETURNING *;
+  RETURNING ordenes_servicio.id, ordenes_servicio.id_equipo, ordenes_servicio.id_tecnico,
+            ordenes_servicio.estado, ordenes_servicio.tipo, ordenes_servicio.es_reemplazo,
+            ordenes_servicio.descripcion, ordenes_servicio.observaciones, 
+            ordenes_servicio.fecha_inicio, ordenes_servicio.fecha_fin, 
+            ordenes_servicio.fecha_limite, ordenes_servicio.created_at, ordenes_servicio.updated_at;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_eliminar_orden(p_id INT)
-RETURNS void AS $$
+RETURNS TABLE(eliminado BOOLEAN) AS $$
 BEGIN
   DELETE FROM ordenes_servicio WHERE id = p_id;
+  RETURN QUERY SELECT TRUE;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_orden_asignar_tecnico(p_id_orden INT, p_id_tecnico INT)
 RETURNS TABLE(
-  id INT, id_equipo INT, id_tecnico INT, estado VARCHAR, tipo VARCHAR, es_reemplazo BOOLEAN,
-  descripcion TEXT, observaciones TEXT, fecha_inicio TIMESTAMP, fecha_fin TIMESTAMP, fecha_limite TIMESTAMP,
-  created_at TIMESTAMP, updated_at TIMESTAMP, equipo_placa VARCHAR, tecnico_nombre VARCHAR
+  id INT, 
+  id_equipo INT, 
+  id_tecnico INT, 
+  estado VARCHAR, 
+  tipo VARCHAR, 
+  es_reemplazo BOOLEAN,
+  descripcion TEXT, 
+  observaciones TEXT, 
+  fecha_inicio TIMESTAMP, 
+  fecha_fin TIMESTAMP, 
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP, 
+  updated_at TIMESTAMP, 
+  equipo_placa VARCHAR, 
+  tecnico_nombre VARCHAR
 ) AS $$
 BEGIN
   UPDATE ordenes_servicio
@@ -381,7 +628,9 @@ BEGIN
   WHERE ordenes_servicio.id = p_id_orden;
 
   RETURN QUERY
-  SELECT o.*,
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at,
          eq.placa::VARCHAR AS equipo_placa,
          t.nombre::VARCHAR AS tecnico_nombre
   FROM ordenes_servicio o
@@ -391,11 +640,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION sp_orden_actualizar_estado(p_id_orden INT, p_nuevo_estado VARCHAR(50), p_observaciones TEXT)
-RETURNS TABLE(
-  id INT, id_equipo INT, id_tecnico INT, estado VARCHAR, tipo VARCHAR, es_reemplazo BOOLEAN,
-  descripcion TEXT, observaciones TEXT, fecha_inicio TIMESTAMP, fecha_fin TIMESTAMP, fecha_limite TIMESTAMP,
-  created_at TIMESTAMP, updated_at TIMESTAMP, equipo_placa VARCHAR, tecnico_nombre VARCHAR
+CREATE OR REPLACE FUNCTION sp_orden_actualizar_estado(
+  p_id_orden INT, 
+  p_nuevo_estado VARCHAR(50), 
+  p_observaciones TEXT
+) RETURNS TABLE(
+  id INT, 
+  id_equipo INT, 
+  id_tecnico INT, 
+  estado VARCHAR, 
+  tipo VARCHAR, 
+  es_reemplazo BOOLEAN,
+  descripcion TEXT, 
+  observaciones TEXT, 
+  fecha_inicio TIMESTAMP, 
+  fecha_fin TIMESTAMP, 
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP, 
+  updated_at TIMESTAMP, 
+  equipo_placa VARCHAR, 
+  tecnico_nombre VARCHAR
 ) AS $$
 BEGIN
   UPDATE ordenes_servicio
@@ -405,7 +669,9 @@ BEGIN
   WHERE ordenes_servicio.id = p_id_orden;
 
   RETURN QUERY
-  SELECT o.*,
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at,
          eq.placa::VARCHAR AS equipo_placa,
          t.nombre::VARCHAR AS tecnico_nombre
   FROM ordenes_servicio o
@@ -417,11 +683,30 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_orden_cerrar(p_id_orden INT, p_observaciones TEXT)
 RETURNS TABLE(
-  id INT, id_equipo INT, id_tecnico INT, estado VARCHAR, tipo VARCHAR, es_reemplazo BOOLEAN,
-  descripcion TEXT, observaciones TEXT, fecha_inicio TIMESTAMP, fecha_fin TIMESTAMP, fecha_limite TIMESTAMP,
-  created_at TIMESTAMP, updated_at TIMESTAMP, equipo_placa VARCHAR, tecnico_nombre VARCHAR
+  id INT, 
+  id_equipo INT, 
+  id_tecnico INT, 
+  estado VARCHAR, 
+  tipo VARCHAR, 
+  es_reemplazo BOOLEAN,
+  descripcion TEXT, 
+  observaciones TEXT, 
+  fecha_inicio TIMESTAMP, 
+  fecha_fin TIMESTAMP, 
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP, 
+  updated_at TIMESTAMP, 
+  equipo_placa VARCHAR, 
+  tecnico_nombre VARCHAR
 ) AS $$
+DECLARE
+  v_id_equipo INT;
 BEGIN
+  -- Obtener el id_equipo antes de actualizar
+  SELECT o.id_equipo INTO v_id_equipo
+  FROM ordenes_servicio o
+  WHERE o.id = p_id_orden;
+
   UPDATE ordenes_servicio
   SET estado = 'finalizada',
       fecha_fin = NOW(),
@@ -434,10 +719,12 @@ BEGIN
   SET estado = 'operativo',
       novedad = 'disponible',
       updated_at = NOW()
-  WHERE equipos.id = (SELECT o.id_equipo FROM ordenes_servicio o WHERE o.id = p_id_orden);
+  WHERE equipos.id = v_id_equipo;
 
   RETURN QUERY
-  SELECT o.*,
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at,
          eq.placa::VARCHAR AS equipo_placa,
          t.nombre::VARCHAR AS tecnico_nombre
   FROM ordenes_servicio o
@@ -449,13 +736,28 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION sp_orden_verificar_plazos()
 RETURNS TABLE(
-  id INT, id_equipo INT, id_tecnico INT, estado VARCHAR, tipo VARCHAR, es_reemplazo BOOLEAN,
-  descripcion TEXT, observaciones TEXT, fecha_inicio TIMESTAMP, fecha_fin TIMESTAMP, fecha_limite TIMESTAMP,
-  created_at TIMESTAMP, updated_at TIMESTAMP, equipo_placa VARCHAR, tecnico_nombre VARCHAR, estado_plazo TEXT
+  id INT, 
+  id_equipo INT, 
+  id_tecnico INT, 
+  estado VARCHAR, 
+  tipo VARCHAR, 
+  es_reemplazo BOOLEAN,
+  descripcion TEXT, 
+  observaciones TEXT, 
+  fecha_inicio TIMESTAMP, 
+  fecha_fin TIMESTAMP, 
+  fecha_limite TIMESTAMP,
+  created_at TIMESTAMP, 
+  updated_at TIMESTAMP, 
+  equipo_placa VARCHAR, 
+  tecnico_nombre VARCHAR, 
+  estado_plazo TEXT
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT o.*,
+  SELECT o.id, o.id_equipo, o.id_tecnico, o.estado, o.tipo, o.es_reemplazo,
+         o.descripcion, o.observaciones, o.fecha_inicio, o.fecha_fin, o.fecha_limite,
+         o.created_at, o.updated_at,
          eq.placa::VARCHAR AS equipo_placa,
          t.nombre::VARCHAR AS tecnico_nombre,
          CASE
@@ -475,7 +777,6 @@ CREATE OR REPLACE FUNCTION sp_orden_delete(p_id INT)
 RETURNS TABLE(affected INT) AS $$
 BEGIN
   DELETE FROM ordenes_servicio WHERE id = p_id;
-  -- en postgres para devolver filas afectadas se usaría GET DIAGNOSTICS pero para esto simple devolvemos 1
   RETURN QUERY SELECT 1;
 END;
 $$ LANGUAGE plpgsql;
