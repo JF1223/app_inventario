@@ -1,6 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { DatabaseService } from '../../database';
-import { CreateEquipoDto, UpdateEquipoDto, EnviarReparacionDto, ReasignarEquipoDto } from './dto';
+import {
+  CreateEquipoDto,
+  UpdateEquipoDto,
+  EnviarReparacionDto,
+  ReasignarEquipoDto,
+} from './dto';
 
 export interface Equipo {
   id: number;
@@ -12,7 +22,8 @@ export interface Equipo {
   asignadas: string | null;
   observaciones: string | null;
   id_cliente: number | null;
-  cliente?: { id: number; nombre: string };
+  cliente_nombre?: string;
+  cliente_documento?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -21,10 +32,18 @@ export interface Equipo {
 export class EquiposService {
   constructor(private readonly db: DatabaseService) {}
 
+  // ============================================
+  // CREAR EQUIPO
+  // ============================================
+
   async create(dto: CreateEquipoDto): Promise<Equipo> {
     try {
-      const result = await this.db.call<Equipo[]>(
-        'sp_crear_equipo(?, ?, ?, ?, ?, ?, ?, ?)',
+      const result = await this.db.query<Equipo>(
+        `
+        SELECT * FROM sp_equipo_create(
+          $1, $2, $3, $4, $5, $6, $7, $8
+        )
+        `,
         [
           dto.placa,
           dto.estado || 'operativo',
@@ -36,36 +55,62 @@ export class EquiposService {
           dto.id_cliente || null,
         ],
       );
-      return result[0];
+
+      return result.rows[0];
     } catch (error: any) {
-      console.error("Error al crear equipo:", error);
-      throw error;
+      console.log(error);
+
+      throw new BadRequestException(
+        error.message || 'Error al crear el equipo',
+      );
     }
   }
+
+  // ============================================
+  // LISTAR EQUIPOS
+  // ============================================
 
   async findAll(): Promise<Equipo[]> {
-    try {
-      const result = await this.db.call<Equipo[]>('sp_listar_equipos()');
-      // CORRECCIÓN: Si es null/undefined o no es un array, devolvemos []
-      return Array.isArray(result) ? result : [];
-    } catch (error) {
-      console.error("Error al listar equipos:", error);
-      // Retornar [] permite que el frontend siga funcionando sin crashear
-      return []; 
-    }
+    const result = await this.db.query<Equipo>(
+      `SELECT * FROM sp_equipo_find_all()`,
+    );
+
+    return result.rows;
   }
+
+  // ============================================
+  // OBTENER UN EQUIPO
+  // ============================================
 
   async findOne(id: number): Promise<Equipo> {
-    const result = await this.db.call<Equipo[]>('sp_obtener_equipo(?)', [id]);
-    if (!result || result.length === 0) {
-      throw new NotFoundException(`Equipo con ID ${id} no encontrado`);
+    const result = await this.db.query<Equipo>(
+      `SELECT * FROM sp_equipo_find_one($1)`,
+      [id],
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException(
+        `Equipo con ID ${id} no encontrado`,
+      );
     }
-    return result[0];
+
+    return result.rows[0];
   }
 
-  async update(id: number, dto: UpdateEquipoDto): Promise<Equipo> {
-    const result = await this.db.call<Equipo[]>(
-      'sp_actualizar_equipo(?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  // ============================================
+  // ACTUALIZAR EQUIPO
+  // ============================================
+
+  async update(
+    id: number,
+    dto: UpdateEquipoDto,
+  ): Promise<Equipo> {
+    const result = await this.db.query<Equipo>(
+      `
+      SELECT * FROM sp_equipo_update(
+        $1, $2, $3, $4, $5, $6, $7, $8, $9
+      )
+      `,
       [
         id,
         dto.placa || null,
@@ -78,41 +123,109 @@ export class EquiposService {
         dto.id_cliente || null,
       ],
     );
-    if (!result || result.length === 0) {
-      throw new NotFoundException(`Equipo con ID ${id} no encontrado`);
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException(
+        `Equipo con ID ${id} no encontrado`,
+      );
     }
-    return result[0];
+
+    return result.rows[0];
   }
+
+  // ============================================
+  // ELIMINAR EQUIPO
+  // ============================================
 
   async delete(id: number): Promise<void> {
-    await this.db.call('sp_eliminar_equipo(?)', [id]);
+    await this.db.query(
+      `SELECT * FROM sp_equipo_delete($1)`,
+      [id],
+    );
   }
+
+  // ============================================
+  // BUSCAR POR ESTADO
+  // ============================================
 
   async findByEstado(estado: string): Promise<Equipo[]> {
-    const result = await this.db.call<Equipo[]>('sp_listar_equipos_por_estado(?)', [estado]);
-    return Array.isArray(result) ? result : [];
+    const result = await this.db.query<Equipo>(
+      `SELECT * FROM sp_equipo_find_by_estado($1)`,
+      [estado],
+    );
+
+    return result.rows;
   }
+
+  // ============================================
+  // EQUIPOS OPERATIVOS DISPONIBLES
+  // ============================================
 
   async findOperativosDisponibles(): Promise<Equipo[]> {
-    const result = await this.db.call<Equipo[]>('sp_listar_operativos_disponibles()');
-    return Array.isArray(result) ? result : [];
+    const result = await this.db.query<Equipo>(
+      `SELECT * FROM sp_equipo_find_operativos_disponibles()`,
+    );
+
+    return result.rows;
   }
 
-  async enviarReparacion(id: number, dto: EnviarReparacionDto): Promise<any> {
-    const result = await this.db.call('sp_equipo_enviar_reparacion(?, ?)', [id, dto.observaciones]);
-    return result ? result[0] : null;
+  // ============================================
+  // ENVIAR A REPARACION
+  // ============================================
+
+  async enviarReparacion(
+    id: number,
+    dto: EnviarReparacionDto,
+  ): Promise<Equipo> {
+    const result = await this.db.query<Equipo>(
+      `
+      SELECT * FROM sp_equipo_enviar_reparacion(
+        $1,
+        $2
+      )
+      `,
+      [id, dto.observaciones],
+    );
+
+    return result.rows[0];
   }
+
+  // ============================================
+  // FINALIZAR REPARACION
+  // ============================================
 
   async finalizarReparacion(id: number): Promise<Equipo> {
-    const result = await this.db.call<Equipo[]>('sp_finalizar_reparacion(?)', [id]);
-    if (!result || result.length === 0) {
-      throw new NotFoundException(`Equipo con ID ${id} no encontrado o no está en reparación`);
+    const result = await this.db.query<Equipo>(
+      `
+      SELECT * FROM sp_equipo_finalizar_reparacion($1)
+      `,
+      [id],
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException(
+        `Equipo con ID ${id} no encontrado o no está en reparación`,
+      );
     }
-    return result[0];
+
+    return result.rows[0];
   }
 
-  async reasignar(id: number, dto: ReasignarEquipoDto): Promise<any> {
-    const result = await this.db.call('sp_reasignar_equipo(?, ?)', [id, dto.id_cliente]);
-    return result ? result[0] : null;
+  // ============================================
+  // REASIGNAR EQUIPO
+  // ============================================
+
+  async reasignar(
+    id: number,
+    dto: ReasignarEquipoDto,
+  ): Promise<Equipo> {
+    const result = await this.db.query<Equipo>(
+      `
+      SELECT * FROM sp_equipo_reasignar($1, $2)
+      `,
+      [id, dto.id_cliente],
+    );
+
+    return result.rows[0];
   }
 }
