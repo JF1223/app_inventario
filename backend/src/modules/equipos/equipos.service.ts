@@ -47,9 +47,17 @@ export interface Equipo {
 }
 
   async findAll(): Promise<Equipo[]> {
-    return this.db.call<Equipo[]>('sp_listar_equipos()');
+  try {
+    const result = await this.db.call<Equipo[]>('sp_listar_equipos()');
+    
+    // Si result es nulo, indefinido o no es un array, devolvemos un array vacío []
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error("Error al listar equipos:", error);
+    // Si la BD falla, devolvemos un array vacío en lugar de romper la comunicación
+    return [];
   }
-
+}
   async findOne(id: number): Promise<Equipo> {
     const result = await this.db.call<Equipo[]>('sp_obtener_equipo(?)', [id]);
     if (!result || result.length === 0) {
