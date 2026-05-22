@@ -18,10 +18,11 @@ export interface Equipo {
 }
 
 @Injectable()
-  export class EquiposService {
-    constructor(private readonly db: DatabaseService) {}
+export class EquiposService {
+  constructor(private readonly db: DatabaseService) {}
 
-    async create(dto: CreateEquipoDto): Promise<Equipo> {
+  async create(dto: CreateEquipoDto): Promise<Equipo> {
+    try {
       const result = await this.db.call<Equipo[]>(
         'sp_crear_equipo(?, ?, ?, ?, ?, ?, ?, ?)',
         [
@@ -36,28 +37,24 @@ export interface Equipo {
         ],
       );
       return result[0];
+    } catch (error: any) {
+      console.error("Error al crear equipo:", error);
+      throw error;
     }
-
-    catch (error: any) {
-
-  console.log(error);
-
-  throw error;
-
-}
+  }
 
   async findAll(): Promise<Equipo[]> {
-  try {
-    const result = await this.db.call<Equipo[]>('sp_listar_equipos()');
-    
-    // Si result es nulo, indefinido o no es un array, devolvemos un array vacío []
-    return Array.isArray(result) ? result : [];
-  } catch (error) {
-    console.error("Error al listar equipos:", error);
-    // Si la BD falla, devolvemos un array vacío en lugar de romper la comunicación
-    return [];
+    try {
+      const result = await this.db.call<Equipo[]>('sp_listar_equipos()');
+      // CORRECCIÓN: Si es null/undefined o no es un array, devolvemos []
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error("Error al listar equipos:", error);
+      // Retornar [] permite que el frontend siga funcionando sin crashear
+      return []; 
+    }
   }
-}
+
   async findOne(id: number): Promise<Equipo> {
     const result = await this.db.call<Equipo[]>('sp_obtener_equipo(?)', [id]);
     if (!result || result.length === 0) {
@@ -93,20 +90,18 @@ export interface Equipo {
 
   async findByEstado(estado: string): Promise<Equipo[]> {
     const result = await this.db.call<Equipo[]>('sp_listar_equipos_por_estado(?)', [estado]);
-    return result;
+    return Array.isArray(result) ? result : [];
   }
 
   async findOperativosDisponibles(): Promise<Equipo[]> {
     const result = await this.db.call<Equipo[]>('sp_listar_operativos_disponibles()');
-    return result;
+    return Array.isArray(result) ? result : [];
   }
 
   async enviarReparacion(id: number, dto: EnviarReparacionDto): Promise<any> {
     const result = await this.db.call('sp_equipo_enviar_reparacion(?, ?)', [id, dto.observaciones]);
-    return result[0];
+    return result ? result[0] : null;
   }
-
-
 
   async finalizarReparacion(id: number): Promise<Equipo> {
     const result = await this.db.call<Equipo[]>('sp_finalizar_reparacion(?)', [id]);
@@ -118,6 +113,6 @@ export interface Equipo {
 
   async reasignar(id: number, dto: ReasignarEquipoDto): Promise<any> {
     const result = await this.db.call('sp_reasignar_equipo(?, ?)', [id, dto.id_cliente]);
-    return result[0];
+    return result ? result[0] : null;
   }
 }
