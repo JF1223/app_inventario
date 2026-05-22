@@ -10,4 +10,6 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", "--dns-result-order=ipv4first", "dist/main.js"]
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
+
+CMD ["node", "dist/main.js"]
