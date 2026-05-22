@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 
 import { DatabaseService } from '../../database';
+
 import {
   CreateEquipoDto,
   UpdateEquipoDto,
@@ -40,7 +41,7 @@ export class EquiposService {
     try {
       const result = await this.db.query(
         `
-        SELECT * FROM sp_equipo_create(
+        SELECT * FROM sp_crear_equipo(
           $1, $2, $3, $4, $5, $6, $7, $8
         )
         `,
@@ -73,7 +74,7 @@ export class EquiposService {
   async findAll(): Promise<Equipo[]> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_find_all()
+      SELECT * FROM sp_listar_equipos()
       `,
     );
 
@@ -81,13 +82,13 @@ export class EquiposService {
   }
 
   // ============================================
-  // OBTENER EQUIPO POR ID
+  // OBTENER EQUIPO
   // ============================================
 
   async findOne(id: number): Promise<Equipo> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_find_one($1)
+      SELECT * FROM sp_obtener_equipo($1)
       `,
       [id],
     );
@@ -111,7 +112,7 @@ export class EquiposService {
   ): Promise<Equipo> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_update(
+      SELECT * FROM sp_actualizar_equipo(
         $1, $2, $3, $4, $5, $6, $7, $8, $9
       )
       `,
@@ -144,7 +145,7 @@ export class EquiposService {
   async delete(id: number): Promise<void> {
     await this.db.query(
       `
-      SELECT * FROM sp_equipo_delete($1)
+      SELECT * FROM sp_eliminar_equipo($1)
       `,
       [id],
     );
@@ -157,7 +158,7 @@ export class EquiposService {
   async findByEstado(estado: string): Promise<Equipo[]> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_find_by_estado($1)
+      SELECT * FROM sp_listar_equipos_por_estado($1)
       `,
       [estado],
     );
@@ -166,13 +167,13 @@ export class EquiposService {
   }
 
   // ============================================
-  // LISTAR OPERATIVOS DISPONIBLES
+  // OPERATIVOS DISPONIBLES
   // ============================================
 
   async findOperativosDisponibles(): Promise<Equipo[]> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_find_operativos_disponibles()
+      SELECT * FROM sp_listar_operativos_disponibles()
       `,
     );
 
@@ -186,19 +187,13 @@ export class EquiposService {
   async enviarReparacion(
     id: number,
     dto: EnviarReparacionDto,
-  ): Promise<Equipo> {
+  ): Promise<any> {
     const result = await this.db.query(
       `
       SELECT * FROM sp_equipo_enviar_reparacion($1, $2)
       `,
       [id, dto.observaciones || null],
     );
-
-    if (!result.rows || result.rows.length === 0) {
-      throw new NotFoundException(
-        `Equipo con ID ${id} no encontrado`,
-      );
-    }
 
     return result.rows[0];
   }
@@ -210,7 +205,7 @@ export class EquiposService {
   async finalizarReparacion(id: number): Promise<Equipo> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_finalizar_reparacion($1)
+      SELECT * FROM sp_finalizar_reparacion($1)
       `,
       [id],
     );
@@ -231,19 +226,13 @@ export class EquiposService {
   async reasignar(
     id: number,
     dto: ReasignarEquipoDto,
-  ): Promise<Equipo> {
+  ): Promise<any> {
     const result = await this.db.query(
       `
-      SELECT * FROM sp_equipo_reasignar($1, $2)
+      SELECT * FROM sp_reasignar_equipo($1, $2)
       `,
       [id, dto.id_cliente],
     );
-
-    if (!result.rows || result.rows.length === 0) {
-      throw new NotFoundException(
-        `No se pudo reasignar el equipo`,
-      );
-    }
 
     return result.rows[0];
   }
