@@ -1,63 +1,32 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool, QueryResult } from 'pg';
+import { Injectable, Inject, OnModuleDestroy } from '@nestjs/common';
+import { Pool } from 'pg'; // Usamos la librería 'pg'
+
+const DATABASE_SYMBOL = 'DATABASE_POOL';
 
 @Injectable()
-export class DatabaseService
-  implements OnModuleInit, OnModuleDestroy
-{
-  private pool: Pool;
+export class DatabaseService implements OnModuleDestroy {
+  constructor(@Inject(DATABASE_SYMBOL) private readonly pool: Pool) { }
 
-  constructor() {
-    this.pool = new Pool({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      user: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_DATABASE,
-
-      // IMPORTANTE PARA SUPABASE
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    });
+  // En PostgreSQL, usamos .query() para ejecutar consultas
+  async query<T = any>(sql: string, params?: any[]): Promise<T> {
+    // Nota: PostgreSQL usa $1, $2 en lugar de ?
+    const result = await this.pool.query(sql, params);
+    return result.rows as T;
   }
 
-  // ============================================
-  // CONEXION
-  // ============================================
-
-  async onModuleInit() {
-    try {
-      const client = await this.pool.connect();
-
-      console.log('✅ PostgreSQL conectado correctamente');
-
-      client.release();
-    } catch (error) {
-      console.error('❌ Error conectando PostgreSQL:', error);
-
-      throw error;
-    }
+  // Nota sobre 'call': PostgreSQL no usa 'CALL' de la misma forma que MySQL.
+  // Si no usas procedimientos almacenados complejos, este método podría no ser necesario.
+  async call<T = any>(procedureName: string, params: any[] = []): Promise<T> {
+    // Si realmente usas funciones en Postgres, se llamarían con SELECT * FROM nombre_funcion(...)
+    const result = await this.pool.query(`SELECT * FROM ${procedureName}($1)`, params);
+    return result.rows as T;
   }
 
-  // ============================================
-  // QUERY GENERAL
-  // ============================================
-
-  async query<T = any>(
-    text: string,
-    params?: any[],
-  ): Promise<QueryResult<T>> {
-    return this.pool.query(text, params);
+  async getConnection() {
+    return await this.pool.connect();
   }
-
-  // ============================================
-  // CERRAR CONEXION
-  // ============================================
 
   async onModuleDestroy() {
     await this.pool.end();
-
-    console.log('🔌 PostgreSQL desconectado');
   }
 }
