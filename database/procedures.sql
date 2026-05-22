@@ -1,4 +1,4 @@
-```sql
+
 -- ============================================
 -- FUNCIONES Y PROCEDIMIENTOS - POSTGRESQL
 -- SISTEMA DE MANTENIMIENTO
