@@ -21,7 +21,7 @@ const DATABASE_SYMBOL = 'DATABASE_POOL';
 
         if (dbUrl) {
           poolOptions.connectionString = dbUrl;
-          poolOptions.ssl = dbUrl.includes('render.com') || isProduction ? { rejectUnauthorized: false } : false;
+          poolOptions.ssl = { rejectUnauthorized: false };
         } else {
           poolOptions.host = dbHost;
           poolOptions.port = config.get<number>('DB_PORT');
